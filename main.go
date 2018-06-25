@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"log"
 	"os"
@@ -8,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/src-d/go-git.v4/plumbing"
-
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
@@ -36,8 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("repository cloned into " + clonePath)
-	log.Printf("repo: %+v\n", repo)
 
 	worktree, err := repo.Worktree()
 	if err != nil {
@@ -46,30 +44,28 @@ func main() {
 
 	// branch
 	now := time.Now()
-	branchName := strings.Replace(setting.title, " ", "_", -1) + "-" + now.Format("20060102150405")
-	refName := plumbing.ReferenceName("refs/heads/" + branchName)
-	headRef, err := repo.Head()
-	if err != nil {
-		log.Fatal(err)
-	}
-	ref := plumbing.NewHashReference(refName, headRef.Hash())
-	err = repo.Storer.SetReference(ref)
+	branchName := strings.Replace(setting.title, " ", "_", -1) + "-" + now.Format("20060102")
+	refName, err := createBranch(repo, branchName)
 	if err != nil {
 		log.Fatal(err)
 	}
 	worktree.Checkout(&git.CheckoutOptions{Branch: refName})
 
 	// command
-	err = execCommand(setting, clonePath)
+	execLog, err := execCommand(setting, clonePath)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf(execLog)
 
 	status, err := worktree.Status()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// not modified
 	if status.IsClean() {
+		log.Println("not modified")
 		os.Exit(0)
 	}
 
@@ -96,7 +92,7 @@ func main() {
 	}
 
 	// TODO: pull request
-
+	// createPullRequest(setting, branchName, execLog)
 }
 
 func getSetting() (*setting, error) {
@@ -178,18 +174,34 @@ func getRepository(setting *setting, clonePath string) (*git.Repository, error) 
 	return repo, nil
 }
 
-func execCommand(setting *setting, clonePath string) error {
+func execCommand(setting *setting, clonePath string) (string, error) {
 	err := os.Chdir(clonePath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	args := strings.Split(setting.command, " ")
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stdout = os.Stdout
+	buffer := new(bytes.Buffer)
+	cmd.Stdout = buffer
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+
+	return string(buffer.Bytes()), nil
+}
+
+func createBranch(repo *git.Repository, branchName string) (plumbing.ReferenceName, error) {
+	refName := plumbing.ReferenceName("refs/heads/" + branchName)
+	headRef, err := repo.Head()
+	if err != nil {
+		return "", err
+	}
+	ref := plumbing.NewHashReference(refName, headRef.Hash())
+	err = repo.Storer.SetReference(ref)
+	if err != nil {
+		return "", err
+	}
+	return refName, nil
 }
