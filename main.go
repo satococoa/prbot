@@ -2,13 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -91,8 +95,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// TODO: pull request
-	// createPullRequest(setting, branchName, execLog)
+	// Pull Request
+	prURL, err := createPullRequest(setting, commitMessage, branchName, execLog)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf(prURL)
 }
 
 func getSetting() (*setting, error) {
@@ -179,8 +188,8 @@ func execCommand(setting *setting, clonePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	args := strings.Split(setting.command, " ")
-	cmd := exec.Command(args[0], args[1:]...)
+	cmdStr := setting.command
+	cmd := exec.Command("sh", "-c", cmdStr)
 	buffer := new(bytes.Buffer)
 	cmd.Stdout = buffer
 	cmd.Stderr = os.Stderr
@@ -204,4 +213,35 @@ func createBranch(repo *git.Repository, branchName string) (plumbing.ReferenceNa
 		return "", err
 	}
 	return refName, nil
+}
+
+func createPullRequest(setting *setting, prTitle, branchName, execLog string) (string, error) {
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: setting.accessToken},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+	s := strings.Split(setting.repository, "/")
+	owner, repo := s[0], s[1]
+	base := "master"
+	body := "Executed `" + setting.command + "`" + `
+
+<details><summary>Output</summary>
+` + execLog + `
+</details>
+`
+
+	pr := &github.NewPullRequest{
+		Title: &branchName,
+		Head:  &branchName,
+		Base:  &base,
+		Body:  &body,
+	}
+
+	created, _, err := client.PullRequests.Create(ctx, owner, repo, pr)
+	if err != nil {
+		return "", err
+	}
+	return created.GetURL(), nil
 }
