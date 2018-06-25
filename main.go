@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/src-d/go-git.v4/plumbing"
+
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
@@ -28,6 +30,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// clone or open
 	clonePath := "/tmp/repo"
 	repo, err := getRepository(setting, clonePath)
 	if err != nil {
@@ -36,12 +39,28 @@ func main() {
 	log.Printf("repository cloned into " + clonePath)
 	log.Printf("repo: %+v\n", repo)
 
-	err = execCommand(setting, clonePath)
+	worktree, err := repo.Worktree()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	worktree, err := repo.Worktree()
+	// branch
+	now := time.Now()
+	branchName := strings.Replace(setting.title, " ", "_", -1) + "-" + now.Format("20060102150405")
+	refName := plumbing.ReferenceName("refs/heads/" + branchName)
+	headRef, err := repo.Head()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ref := plumbing.NewHashReference(refName, headRef.Hash())
+	err = repo.Storer.SetReference(ref)
+	if err != nil {
+		log.Fatal(err)
+	}
+	worktree.Checkout(&git.CheckoutOptions{Branch: refName})
+
+	// command
+	err = execCommand(setting, clonePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,19 +74,29 @@ func main() {
 	}
 
 	// commit
-	dateString := time.Now().Format("2006-01-02 15:04:05")
+	dateString := now.Format("2006-01-02 15:04:05")
 	commitMessage := setting.title + " on " + dateString
 	worktree.AddGlob(".")
 	author := &object.Signature{
 		Name:  setting.authorName,
 		Email: setting.authorEmail,
+		When:  now,
 	}
-	hash, err := worktree.Commit(commitMessage, &git.CommitOptions{Author: author})
+	_, err = worktree.Commit(commitMessage, &git.CommitOptions{
+		Author: author,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println(hash)
+	// push
+	err = repo.Push(&git.PushOptions{Progress: os.Stdout})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// TODO: pull request
+
 }
 
 func getSetting() (*setting, error) {
