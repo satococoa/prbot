@@ -243,5 +243,5 @@ func createPullRequest(setting *setting, prTitle, branchName, execLog string) (s
 	if err != nil {
 		return "", err
 	}
-	return created.GetURL(), nil
+	return created.GetHTMLURL(), nil
 }
