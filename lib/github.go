@@ -22,7 +22,9 @@ func CreatePullRequest(setting *Setting, prTitle, branchName, execLog string) (s
 	body := "Executed `" + setting.command + "`" + `
 
 <details><summary>Output</summary>
+<pre>
 ` + execLog + `
+</pre>
 </details>
 `
 
