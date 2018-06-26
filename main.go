@@ -24,13 +24,13 @@ type CLI struct{ outStream, errStream io.Writer }
 func (c *CLI) Run(args []string) int {
 	setting, err := prbot.NewSetting()
 	if err != nil {
-		fmt.Print(c.errStream, err)
+		fmt.Fprint(c.errStream, err)
 		return ExitCodeSettingError
 	}
 
 	err = prbot.Execute(setting)
 	if err != nil {
-		fmt.Print(c.errStream, err)
+		fmt.Fprint(c.errStream, err)
 		return ExitCodeExecutionError
 	}
 
