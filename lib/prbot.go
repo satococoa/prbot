@@ -2,7 +2,6 @@ package prbot
 
 import (
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -16,6 +15,7 @@ func Execute(setting *Setting) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("cloned into %s", clonePath)
 
 	worktree, err := repo.Worktree()
 	if err != nil {
@@ -44,7 +44,7 @@ func Execute(setting *Setting) error {
 
 	// not modified
 	if status.IsClean() {
-		log.Println("not modified")
+		log.Printf("not modified")
 		return nil
 	}
 
@@ -57,7 +57,7 @@ func Execute(setting *Setting) error {
 	}
 
 	// push
-	err = repo.Push(&git.PushOptions{Progress: os.Stdout})
+	err = repo.Push(&git.PushOptions{})
 	if err != nil {
 		return err
 	}
@@ -68,6 +68,6 @@ func Execute(setting *Setting) error {
 		return err
 	}
 
-	log.Printf(prURL)
+	log.Printf("Pull Request: %s", prURL)
 	return nil
 }

@@ -15,8 +15,7 @@ func FetchRepository(setting *Setting, clonePath string) (*git.Repository, error
 	_, err := os.Stat(clonePath)
 	if err != nil {
 		repo, err := git.PlainClone(clonePath, false, &git.CloneOptions{
-			URL:      cloneURL,
-			Progress: os.Stdout,
+			URL: cloneURL,
 		})
 		if err != nil {
 			return nil, err
