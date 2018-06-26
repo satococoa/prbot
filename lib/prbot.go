@@ -11,7 +11,6 @@ import (
 // Execute will execute main routine
 func Execute(setting *Setting) error {
 	clonePath := "/tmp/repo"
-	log.Printf("cloning into %s", clonePath)
 	repo, err := FetchRepository(setting, clonePath)
 	if err != nil {
 		return err
