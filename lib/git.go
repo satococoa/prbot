@@ -1,6 +1,7 @@
 package prbot
 
 import (
+	"log"
 	"os"
 	"time"
 
@@ -13,11 +14,13 @@ import (
 func FetchRepository(setting *Setting, clonePath string) (*git.Repository, error) {
 	cloneURL := "https://" + setting.accessToken + "@github.com/" + setting.repository
 	_, err := os.Stat(clonePath)
+	log.Printf("Clone: %s -> %s", cloneURL, clonePath)
 	if err != nil {
 		repo, err := git.PlainClone(clonePath, false, &git.CloneOptions{
 			URL: cloneURL,
 		})
 		if err != nil {
+			log.Printf(err.Error())
 			return nil, err
 		}
 		return repo, nil
